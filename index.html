@@ -28,7 +28,8 @@
     let timer;
 
     // Replace with your Google Sheets CSV export link
-    const sheetUrl = "https://docs.google.com/spreadsheets/d/<<YOUR-SHEET-ID>>/gviz/tq?tqx=out:csv";
+	const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCEfidpe_QRSvWPyFgvwEHufBwOCpu8S7ZKQVOyTKBgfhO_Igom1ucbdHeF-gDiimp_dNhb2GFge-/pub?output=csv";
+    //const sheetUrl = "https://docs.google.com/spreadsheets/d/<<YOUR-SHEET-ID>>/gviz/tq?tqx=out:csv";
 
     async function loadWords() {
       const response = await fetch(sheetUrl);
