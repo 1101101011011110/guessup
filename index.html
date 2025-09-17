@@ -1,63 +1,84 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Guess Up (web)</title>
+  <meta charset="UTF-8">
+  <title>Guess Up</title>
   <style>
-    body { font-family: sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; background:#222; color:white; text-align:center; }
-    #word { font-size:2em; margin-bottom:1em; }
-    .btn { padding:1em 2em; margin:0.5em; border:none; border-radius:8px; font-size:1em; cursor:pointer; }
-    .yes { background:#4caf50; color:white; }
-    .skip { background:#f44336; color:white; }
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    #word { font-size: 2em; margin: 20px; }
+    button { font-size: 1.2em; margin: 10px; padding: 10px 20px; }
+    #results { margin-top: 20px; }
   </style>
 </head>
 <body>
-  <div id="game">
-    <div id="timer">60</div>
-    <div id="word">Press Start</div>
-    <button onclick="startGame()" class="btn">▶ Start</button>
-    <div id="controls" style="display:none;">
-      <button onclick="mark(true)" class="btn yes">Guessed ✅</button>
-      <button onclick="mark(false)" class="btn skip">Skip ❌</button>
-    </div>
-  </div>
+  <h1>Guess Up</h1>
+  <div id="word">Press Start</div>
+  <button onclick="startGame()">Start Game</button>
+  <button onclick="markGuessed()">Right (✔)</button>
+  <button onclick="skipWord()">Left (✘)</button>
 
-<script>
-let words = ["Banana", "Rocket", "Piano", "Elephant", "Dancing", "Superman"];
-let current = 0;
-let guessed = [], skipped = [];
-let timer = 60, countdown;
+  <div id="results"></div>
 
-function startGame() {
-  guessed = []; skipped = [];
-  current = 0; timer = 60;
-  document.getElementById('controls').style.display='block';
-  document.getElementById('word').textContent = words[current];
-  document.querySelector('button').style.display='none';
-  document.getElementById('timer').textContent = timer;
-  countdown = setInterval(()=>{
-    timer--; document.getElementById('timer').textContent = timer;
-    if(timer<=0) endGame();
-  },1000);
-}
+  <script>
+    let words = [];
+    let currentIndex = 0;
+    let guessed = [];
+    let skipped = [];
+    let gameActive = false;
+    let timer;
 
-function mark(ok){
-  if(ok) guessed.push(words[current]);
-  else skipped.push(words[current]);
-  current++;
-  if(current < words.length) {
-    document.getElementById('word').textContent = words[current];
-  } else {
-    endGame();
-  }
-}
+    // Replace with your Google Sheets CSV export link
+    const sheetUrl = "https://docs.google.com/spreadsheets/d/<<YOUR-SHEET-ID>>/gviz/tq?tqx=out:csv";
 
-function endGame(){
-  clearInterval(countdown);
-  document.getElementById('controls').style.display='none';
-  document.getElementById('word').innerHTML =
-    "<h3>Time's up!</h3><p>Guessed: "+guessed.join(", ")+"</p><p>Skipped: "+skipped.join(", ")+"</p>";
-}
-</script>
+    async function loadWords() {
+      const response = await fetch(sheetUrl);
+      const text = await response.text();
+      words = text.split("\n").map(w => w.trim()).filter(w => w.length > 0);
+    }
+
+    function showWord() {
+      if (currentIndex < words.length) {
+        document.getElementById("word").innerText = words[currentIndex];
+      } else {
+        endGame();
+      }
+    }
+
+    function startGame() {
+      guessed = [];
+      skipped = [];
+      currentIndex = 0;
+      gameActive = true;
+      document.getElementById("results").innerHTML = "";
+      loadWords().then(() => {
+        showWord();
+        timer = setTimeout(endGame, 60000); // 60 seconds
+      });
+    }
+
+    function markGuessed() {
+      if (!gameActive) return;
+      guessed.push(words[currentIndex]);
+      currentIndex++;
+      showWord();
+    }
+
+    function skipWord() {
+      if (!gameActive) return;
+      skipped.push(words[currentIndex]);
+      currentIndex++;
+      showWord();
+    }
+
+    function endGame() {
+      gameActive = false;
+      clearTimeout(timer);
+      document.getElementById("word").innerText = "Time's up!";
+      document.getElementById("results").innerHTML = `
+        <h3>Guessed:</h3><p>${guessed.join(", ") || "None"}</p>
+        <h3>Skipped:</h3><p>${skipped.join(", ") || "None"}</p>
+      `;
+    }
+  </script>
 </body>
 </html>
