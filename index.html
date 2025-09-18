@@ -81,17 +81,13 @@
     }
 
     function showWord() {
-      if (currentIndex < words.length) {
-        document.getElementById("word").innerText = words[currentIndex];
-      } else {
-        endGame();
-      }
+      currentIndex = Math.floor (Math.random () * words.length );
+      document.getElementById("word").innerText = words[currentIndex];
     }
 
     function startGame() {
       guessed = [];
       skipped = [];
-      currentIndex = 0;
       gameActive = true;
       document.getElementById("results").innerHTML = "";
       document.getElementById("startControls").style.display = "none";   // nascondo start
@@ -106,14 +102,12 @@
     function markGuessed() {
       if (!gameActive) return;
       guessed.push(words[currentIndex]);
-      currentIndex++;
       showWord();
     }
 
     function skipWord() {
       if (!gameActive) return;
       skipped.push(words[currentIndex]);
-      currentIndex++;
       showWord();
     }
 
