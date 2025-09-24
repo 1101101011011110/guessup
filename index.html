@@ -122,7 +122,7 @@
 
   <!-- bottoni durante il gioco -->
   <div class="controls" id="gameControls" style="display:none;">
-    <button onclick="skipWord()"><span class="icon">⏭</span></button>
+    <button onclick="skipWord()"><span class="icon">✘</span></button>
     <button onclick="markGuessed()"><span class="icon">✔</span></button>
   </div>
 
@@ -162,7 +162,7 @@
       if (!container || !textEl) return;
       const maxWidth = container.clientWidth * 0.95;
       const maxHeight = container.clientHeight * 0.9;
-      let fontSize = Math.min(container.clientWidth, container.clientHeight) * 0.18; // starting guess
+      let fontSize = Math.min(container.clientWidth, container.clientHeight) * 0.5; // starting guess
       const minFont = 12; // px floor
       textEl.style.fontSize = fontSize + "px";
       textEl.style.whiteSpace = "pre-wrap";
