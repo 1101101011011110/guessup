@@ -31,13 +31,18 @@
       justify-content: center;
       font-size: 15vw; 
       font-weight: bold;
-	  text-transform: uppercase;
-	  text-align: center;
-	  max-width: 90%;  
-	  word-wrap: break-word;
+  	  text-transform: uppercase;
+	    text-align: center;
       position: relative;
       z-index: 2;              /* show on top of buttons */
       pointer-events: none;    /* allow taps to pass through to buttons */
+    }
+    #wordText {
+      display: inline-block;
+      max-width: 90%;
+      margin: 0 auto;
+      text-align: center;
+      white-space: nowrap;
     }
     .controls {
       display: flex;
@@ -165,8 +170,8 @@
       let fontSize = Math.min(container.clientWidth, container.clientHeight) * 0.5; // starting guess
       const minFont = 12; // px floor
       textEl.style.fontSize = fontSize + "px";
-      textEl.style.whiteSpace = "pre-wrap";
-      textEl.style.wordBreak = "break-word";
+      textEl.style.whiteSpace = "nowrap";
+      textEl.style.wordBreak = "normal";
       // iteratively shrink until it fits
       const measure = () => {
         const tooWide = textEl.scrollWidth > maxWidth;
