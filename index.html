@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#f0f0f0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Guess Up</title>
   <style>
+    html, body {
+      height: 100dvh;
+      overflow: hidden;
+    }
     body {
       font-family: sans-serif;
       text-align: center;
@@ -11,7 +19,10 @@
       background: #f0f0f0;
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
     }
     #word {
       flex: 1;
@@ -24,6 +35,9 @@
 	  text-align: center;
 	  max-width: 90%;  
 	  word-wrap: break-word;
+      position: relative;
+      z-index: 2;              /* show on top of buttons */
+      pointer-events: none;    /* allow taps to pass through to buttons */
     }
     .controls {
       display: flex;
@@ -42,6 +56,54 @@
     button:active {
       background: #0056b3;
     }
+    /* Full-screen split buttons behind the word */
+    #gameControls {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      padding: 0;
+      justify-content: stretch;
+      align-items: stretch;
+      gap: 0;
+      z-index: 1;
+    }
+    #gameControls button {
+      flex: 1 1 50%;
+      height: 100dvh;
+      font-size: 0;           /* hide label text size */
+      border-radius: 0;
+      position: relative;
+    }
+    #gameControls button .icon {
+      position: absolute;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      font-size: 6vw;         /* small symbol */
+      line-height: 1;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+    /* Left (Skip) */
+    #gameControls button:first-child {
+      background: rgba(255, 221, 221, 0.6);
+      color: #000;
+    }
+    #gameControls button:first-child .icon {
+      left: 10px;
+    }
+    #gameControls button:first-child:active {
+      background: rgba(255, 179, 179, 0.75);
+    }
+    /* Right (Guessed) */
+    #gameControls button:last-child {
+      background: rgba(221, 255, 221, 0.6);
+      color: #000;
+    }
+    #gameControls button:last-child .icon {
+      right: 10px;
+    }
+    #gameControls button:last-child:active {
+      background: rgba(179, 255, 179, 0.75);
+    }
     #results {
       padding: 20px;
       text-align: left;
@@ -51,7 +113,7 @@
   </style>
 </head>
 <body>
-  <div id="word">Premi Start</div>
+  <div id="word"><span id="wordText">Premi Start</span></div>
 
   <!-- bottone start -->
   <div class="controls" id="startControls">
@@ -60,8 +122,8 @@
 
   <!-- bottoni durante il gioco -->
   <div class="controls" id="gameControls" style="display:none;">
-    <button onclick="skipWord()">⏭ Skip</button>
-    <button onclick="markGuessed()">✔ Guessed</button>
+    <button onclick="skipWord()"><span class="icon">⏭</span></button>
+    <button onclick="markGuessed()"><span class="icon">✔</span></button>
   </div>
 
   <div id="results"></div>
@@ -73,6 +135,16 @@
     let skipped = [];
     let gameActive = false;
     let timer;
+    
+    // Prevent double-tap to zoom and pinch zoom on mobile
+    document.addEventListener('touchstart', function(e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    document.addEventListener('gesturestart', function(e) {
+      e.preventDefault();
+    });
 
     // Sostituisci con il tuo link Google Sheets (CSV)
 	const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCEfidpe_QRSvWPyFgvwEHufBwOCpu8S7ZKQVOyTKBgfhO_Igom1ucbdHeF-gDiimp_dNhb2GFge-/pub?output=csv";
@@ -84,9 +156,43 @@
       words = text.split("\n").map(w => w.trim()).filter(w => w.length > 0);
     }
 
+    function fitWordToContainer() {
+      const container = document.getElementById("word");
+      const textEl = document.getElementById("wordText");
+      if (!container || !textEl) return;
+      const maxWidth = container.clientWidth * 0.95;
+      const maxHeight = container.clientHeight * 0.9;
+      let fontSize = Math.min(container.clientWidth, container.clientHeight) * 0.18; // starting guess
+      const minFont = 12; // px floor
+      textEl.style.fontSize = fontSize + "px";
+      textEl.style.whiteSpace = "pre-wrap";
+      textEl.style.wordBreak = "break-word";
+      // iteratively shrink until it fits
+      const measure = () => {
+        const tooWide = textEl.scrollWidth > maxWidth;
+        const tooTall = textEl.scrollHeight > maxHeight;
+        return tooWide || tooTall;
+      };
+      let guard = 60;
+      while (guard-- > 0 && measure() && fontSize > minFont) {
+        fontSize -= 2;
+        textEl.style.fontSize = fontSize + "px";
+      }
+    }
+
     function showWord() {
       currentIndex = Math.floor (Math.random () * words.length );
-      document.getElementById("word").innerText = words[currentIndex];
+      document.getElementById("wordText").innerText = words[currentIndex];
+      fitWordToContainer();
+    }
+
+    async function enterFullscreenIfPossible() {
+      const elem = document.documentElement;
+      try {
+        if (elem.requestFullscreen) await elem.requestFullscreen();
+        else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+        else if (elem.msRequestFullscreen) await elem.msRequestFullscreen();
+      } catch (_) {}
     }
 
     function startGame() {
@@ -96,6 +202,7 @@
       document.getElementById("results").innerHTML = "";
       document.getElementById("startControls").style.display = "none";   // nascondo start
       document.getElementById("gameControls").style.display = "flex";   // mostro bottoni gioco
+      enterFullscreenIfPossible();
 
       loadWords().then(() => {
         showWord();
@@ -118,13 +225,20 @@
     function endGame() {
       gameActive = false;
       clearTimeout(timer);
-      document.getElementById("word").innerText = "Tempo scaduto!";
+      document.getElementById("wordText").innerText = "Tempo scaduto!";
       document.getElementById("results").innerHTML = `
         <h3>Indovinati:</h3><p>${guessed.join(", ") || "Nessuno"}</p>
         <h3>Saltati:</h3><p>${skipped.join(", ") || "Nessuno"}</p>
       `;
       document.getElementById("startControls").style.display = "flex"; // ri-mostra start
       document.getElementById("gameControls").style.display = "none";  // nascondi bottoni gioco
+    }
+    
+    // Refit on orientation/resize and after fonts load
+    window.addEventListener('resize', fitWordToContainer);
+    window.addEventListener('orientationchange', fitWordToContainer);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(fitWordToContainer);
     }
   </script>
 </body>
