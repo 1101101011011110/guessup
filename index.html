@@ -224,6 +224,10 @@
         fontSize -= 2;
         textEl.style.fontSize = fontSize + "px";
       }
+      if (fontSize == minFont) {
+        textEl.style.whiteSpace = "pre-wrap";
+        textEl.style.wordBreak = "break-word";
+      }
     }
 
     function showWord() {
