@@ -49,6 +49,11 @@
       justify-content: space-around;
       padding: 20px;
     }
+    #startControls {
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
     button {
       font-size: 6vw;
       padding: 20px 40px;
@@ -118,12 +123,10 @@
   </style>
 </head>
 <body>
-  <div id="word"><span id="wordText">Premi Start</span></div>
+  <div id="word"><span id="wordText">Scegli una categoria</span></div>
 
   <!-- bottone start -->
-  <div class="controls" id="startControls">
-    <button onclick="startGame()">▶ Start Game</button>
-  </div>
+  <div class="controls" id="startControls"></div>
 
   <!-- bottoni durante il gioco -->
   <div class="controls" id="gameControls" style="display:none;">
@@ -151,14 +154,52 @@
       e.preventDefault();
     });
 
-    // Sostituisci con il tuo link Google Sheets (CSV)
-	const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCEfidpe_QRSvWPyFgvwEHufBwOCpu8S7ZKQVOyTKBgfhO_Igom1ucbdHeF-gDiimp_dNhb2GFge-/pub?output=csv";
-	// const sheetUrl = "https://docs.google.com/spreadsheets/d/<<YOUR-SHEET-ID>>/gviz/tq?tqx=out:csv";
+    // Config: Published base URL (no trailing slash) and fallback CSV
+    const publishedBase = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTQCEfidpe_QRSvWPyFgvwEHufBwOCpu8S7ZKQVOyTKBgfhO_Igom1ucbdHeF-gDiimp_dNhb2GFge-";
+    const fallbackSheetCsv = `${publishedBase}/pub?output=csv`;
 
-    async function loadWords() {
-      const response = await fetch(sheetUrl);
-      const text = await response.text();
-      words = text.split("\n").map(w => w.trim()).filter(w => w.length > 0);
+    // Simple CSV parser that supports quoted fields
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let field = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (text[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+          } else {
+            field += ch;
+          }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ',') { row.push(field); field = ''; }
+          else if (ch === '\n') { row.push(field); rows.push(row); row = []; field=''; }
+          else if (ch === '\r') { /* ignore */ }
+          else { field += ch; }
+        }
+      }
+      // push last field
+      if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+      return rows;
+    }
+
+    function categoriesFromColumns(rows) {
+      if (!rows || rows.length === 0) return [];
+      const headers = rows[0];
+      const categories = [];
+      for (let col = 0; col < headers.length; col++) {
+        const name = (headers[col] || '').trim();
+        if (!name) continue;
+        const items = [];
+        for (let r = 1; r < rows.length; r++) {
+          const value = (rows[r][col] || '').trim();
+          if (value) items.push(value);
+        }
+        if (items.length > 0) categories.push({ name, words: items });
+      }
+      return categories;
     }
 
     function fitWordToContainer() {
@@ -209,11 +250,62 @@
       document.getElementById("gameControls").style.display = "flex";   // mostro bottoni gioco
       enterFullscreenIfPossible();
 
-      loadWords().then(() => {
+      if (words.length === 0) return;
+      Promise.resolve().then(() => {
         showWord();
         timer = setTimeout(endGame, 60000); // 60 sec
       });
     }
+
+    // Render category buttons at startup from a single CSV sheet where
+    // each column is a category (first row is the category name)
+    async function renderCategories() {
+      const container = document.getElementById('startControls');
+      container.innerHTML = 'Loading categories...';
+      try {
+        const res = await fetch(fallbackSheetCsv);
+        const text = await res.text();
+        const rows = parseCsv(text);
+        const categories = categoriesFromColumns(rows);
+        container.innerHTML = '';
+        categories.forEach(({ name, words: columnWords }) => {
+          const btn = document.createElement('button');
+          btn.textContent = name;
+          btn.style.fontSize = '6vw';
+          btn.onclick = async () => {
+            words = columnWords.slice();
+            startGame();
+          };
+          container.appendChild(btn);
+        });
+        if (container.children.length === 0) {
+          const fallback = document.createElement('button');
+          fallback.textContent = 'Start';
+          fallback.onclick = async () => {
+            // If no headers, use all non-empty values from first column
+            const firstCol = rows.slice(1).map(r => (r[0] || '').trim()).filter(Boolean);
+            words = firstCol;
+            startGame();
+          };
+          container.appendChild(fallback);
+        }
+      } catch (e) {
+        container.innerHTML = '';
+        const fallback = document.createElement('button');
+        fallback.textContent = 'Start';
+        fallback.onclick = async () => {
+          const res2 = await fetch(fallbackSheetCsv);
+          const text2 = await res2.text();
+          const rows2 = parseCsv(text2);
+          const firstCol = rows2.slice(1).map(r => (r[0] || '').trim()).filter(Boolean);
+          words = firstCol;
+          startGame();
+        };
+        container.appendChild(fallback);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', renderCategories);
 
     function markGuessed() {
       if (!gameActive) return;
